@@ -12,7 +12,8 @@
         }
 
         table {
-            margin: 20px 0;
+            width: 640px;
+            margin: 16px 0;
         }
 
         th {
@@ -23,7 +24,7 @@
 
         td {
             text-align: center;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border: 1px solid #333;
         }
 
@@ -32,50 +33,138 @@
             max-height: 480px;
             overflow: auto;
         }
+
+        .fieldsetSection {
+            margin: 16px 0;
+        }
+        fieldset {
+            margin: 16px 0;
+        }
+        .canvasSection {
+            display: flex;
+            justify-content: space-around;
+        }
     </style>
 </head>
 <body>
-    <canvas id="canvas" width="640" height="480"></canvas>
-    <canvas id="my_chart" width="640" height="480"></canvas>
-    <div class="tableContainer">
-        <table id="measurement_data">
-            <thead>
-            <tr>
-                <th>Velocity of Oxygen Particle (m/s)</th>
-                <th>Probability (%)</th>
-            </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+    <form id="form">
+        <fieldset>
+            <legend>Parameters</legend>
+            <div class="fieldsetSection">
+                <label>
+                    Temperature of the system:
+                    <select name="temperature_kelvin" id="temperature_kelvin">
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                        <option value="300">300</option>
+                        <option value="400">400</option>
+                        <option value="500">500</option>
+                    </select>
+                    K
+                </label>
+            </div>
+            <div class="fieldsetSection">
+                <label>
+                    Gas:
+                    <select name="gas" id="gas">
+                        <option value="oxygen">Oxygen</option>
+                        <option value="hydrogen">Hydrogen</option>
+                        <option value="nitrogen">Nitrogen</option>
+                    </select>
+                </label>
+            </div>
+
+            <button type="submit">Apply</button>
+        </fieldset>
+    </form>
+    <!--  fullscreen  -->
+    <canvas id="canvas" height="480"></canvas>
+    <div class="canvasSection">
+        <div>
+            <canvas id="my_chart" width="640" height="480"></canvas>
+        </div>
+        <div class="tableContainer">
+            <table id="measurement_data">
+                <thead>
+                <tr>
+                    <th>Velocity of Oxygen Particle (m/s)</th>
+                    <th>Probability (%)</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
     </div>
 </body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
-    const T = 300; // Kelvins
+    const canvasElement = document.getElementById('canvas');
+
+    canvasElement.width = document.body.clientWidth;
+</script>
+<script>
+    // constants
+    const colors = ['#F0A202', '#F18805', '#D95D39', '#0E1428', '#0E1428', '#7B9E89']
+    const directions = ['vertical', 'horizontal']
+    const directionVectors = [-1, 1]
+
+    // Boltzmann constant
     const kB = 1.38 * Math.pow(10, -23); // J/K
 
+    const gasData = {
+      oxygen: {
+        name: 'Oxygen',
+        m: 2.65 * Math.pow(10, -26) // kg
+      },
+      hydrogen: {
+        name: 'Hydrogen',
+        m: 1.6735575 * Math.pow(10, -27) // kg
+      },
+      nitrogen: {
+        name: 'Nitrogen',
+        m: 2.3258671 * Math.pow(10, -26) // kg
+      },
+    };
+
+    // parameters
+    let T = 300; // Kelvins
     // oxygen
-    const m = 2.65 * Math.pow(10, -26); // kg
+    let m = 2.65 * Math.pow(10, -26); // kg
+
+    // track for the parameters change
+    const parametersForm = document.getElementById('form');
+
+    let kill;
+
+    parametersForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.currentTarget);
+
+      m = gasData[formData.get('gas')].m;
+      T = Number(formData.get('temperature_kelvin'));
+
+      if (kill) {
+        kill();
+        kill = null;
+      }
+
+      kill = createDistributionModel();
+      createDataPresentation(gasData[formData.get('gas')].name);
+    });
+
+    // global helpers
 
     // v is meters per second
     function probabilityOfASpeedOfAParticle(v) {
-      return (4 / Math.sqrt(Math.PI)) * Math.pow(m / (2 * kB * T), 3/2) * Math.pow(v, 2) * Math.pow(Math.exp(1), ((-m * Math.pow(v, 2)) / (2 * kB * T)))
+        return (4 / Math.sqrt(Math.PI)) * Math.pow(m / (2 * kB * T), 3/2) * Math.pow(v, 2) * Math.pow(Math.exp(1), ((-m * Math.pow(v, 2)) / (2 * kB * T)))
     }
-
-    // console.log(v.map((vt) => probabilityOfASpeedOfAParticle(vt) * 100))
-
-    // console.log(probabilityOfASpeedOfAParticle(300) / probabilityOfASpeedOfAParticle(100))
 
     function probability(n) {
       return !!n && Math.random() <= n;
     }
 
-    const colors = ['#F0A202', '#F18805', '#D95D39', '#0E1428', '#0E1428', '#7B9E89']
-    const directions = ['vertical', 'horizontal']
-    const directionVectors = [-1, 1]
-
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+    // Distribution model helpers
 
     function setVelocity() {
       let speed = 100; // m/s
@@ -101,18 +190,23 @@
       return fallbackSpeed;
     }
 
-    let particles = (new Array(1000)).fill({}).map(() => {
-      return {
-        x: Math.random() * canvas.clientWidth,
-        y: Math.random() * canvas.clientHeight,
-        color: colors[Math.round(Math.random() * (colors.length - 1))],
-        direction: directions[Math.round(Math.random() * (directions.length - 1))],
-        directionVector: directionVectors[Math.round(Math.random() * (directionVectors.length - 1))],
-        velocity: setVelocity() / 1000
-      };
-    });
+    // Distribution model
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-    function move() {
+    function createDistributionModel() {
+      let particles = (new Array(1000)).fill({}).map(() => {
+        return {
+          x: Math.random() * canvas.clientWidth,
+          y: Math.random() * canvas.clientHeight,
+          color: colors[Math.round(Math.random() * (colors.length - 1))],
+          direction: directions[Math.round(Math.random() * (directions.length - 1))],
+          directionVector: directionVectors[Math.round(Math.random() * (directionVectors.length - 1))],
+          velocity: setVelocity() / 1000
+        };
+      });
+
+      function move() {
         particles = particles.map((particle) => {
           let nextDirectionVector = particle.directionVector;
 
@@ -139,99 +233,121 @@
             directionVector: nextDirectionVector
           }
         })
+      }
+
+      function collisions() {
+        particles.forEach((particle, index) => {
+          particles.forEach((otherParticle, otherParticleIndex) => {
+            if (index === otherParticleIndex) {
+              return;
+            }
+
+            if ((particle.x === otherParticle.x) && (particle.y === otherParticle.y)) {
+              particle.directionVector = particle.directionVector * -1;
+              otherParticle.directionVector = otherParticle.directionVector * -1;
+            }
+          })
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+        particles.forEach((particle) => {
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, 2, 0, 2 * Math.PI);
+          ctx.fillStyle = particle.color;
+          ctx.fill();
+        });
+      }
+
+      let kill = false;
+
+      function loop() {
+        move();
+        // collisions();
+        draw();
+
+        if (!kill) {
+          window.requestAnimationFrame(loop);
+        }
+      }
+
+      // todo: add collisions
+      loop();
+
+      return () => {
+        kill = true;
+      }
     }
 
-    function collisions() {
-      particles.forEach((particle, index) => {
-        particles.forEach((otherParticle, otherParticleIndex) => {
-          if (index === otherParticleIndex) {
-            return;
-          }
-
-          if ((particle.x === otherParticle.x) && (particle.y === otherParticle.y)) {
-            particle.directionVector = particle.directionVector * -1;
-            otherParticle.directionVector = otherParticle.directionVector * -1;
-          }
-        })
-      });
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-      particles.forEach((particle) => {
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, 2, 0, 2 * Math.PI);
-        ctx.fillStyle = particle.color;
-        ctx.fill();
-      });
-    }
-
-    function loop() {
-      move();
-      // collisions();
-      draw();
-      window.requestAnimationFrame(loop);
-    }
-
-    // todo: add collisions
-    loop();
+    kill = createDistributionModel();
 </script>
 <script>
-  function createPlotData() {
-    let speed = 10; // m/s
-    let result = [];
+  let currentPlot = null;
+  function createDataPresentation(gasName = 'Oxygen') {
+    if (currentPlot) {
+      currentPlot.destroy();
+    }
+    function createPlotData() {
+      let speed = 10; // m/s
+      let result = [];
 
-    while (speed <= 2000) {
-      result.push({
-        speed,
-        probability: probabilityOfASpeedOfAParticle(speed)
-      });
-      speed += 10;
+      while (speed <= 2000) {
+        result.push({
+          speed,
+          probability: probabilityOfASpeedOfAParticle(speed)
+        });
+        speed += 10;
+      }
+
+      return result;
     }
 
-    return result;
+    const plotData = createPlotData();
+
+    const data = {
+      labels: plotData.map((data) => data.speed),
+      datasets: [{
+        label: `Maxwell-Boltzmann Distribution for ${gasName}`,
+        data: plotData.map((data) => data.probability * 100),
+        fill: false,
+        borderColor: 'rgb(75, 192, 192)',
+        tension: 0.1,
+      }]
+    };
+
+    const config = {
+      type: 'line',
+      data: data,
+      options: {
+        responsive: false
+      }
+    };
+
+    currentPlot = new Chart(document.getElementById('my_chart'), config);
+
+    // populating the data with the measurements
+    const tableContainer = document.getElementById('measurement_data');
+    const table = tableContainer.querySelector('tbody');
+    tableContainer.querySelector('th').textContent = `Velocity of ${gasName} Particle (m/s)`;
+
+    plotData.forEach((data) => {
+      const tr = document.createElement('tr');
+      const speedTd = document.createElement('td');
+
+      speedTd.textContent = data.speed
+
+      const probabilityTd = document.createElement('td');
+
+      probabilityTd.textContent = data.probability * 100;
+
+      tr.appendChild(speedTd);
+      tr.appendChild(probabilityTd);
+
+      table.appendChild(tr);
+    })
   }
 
-  const plotData = createPlotData();
-
-  const data = {
-    labels: plotData.map((data) => data.speed),
-    datasets: [{
-      label: 'Maxwell-Boltzmann Distribution for Oxygen',
-      data: plotData.map((data) => data.probability * 100),
-      fill: false,
-      borderColor: 'rgb(75, 192, 192)',
-      tension: 0.1,
-    }]
-  };
-
-  const config = {
-    type: 'line',
-    data: data,
-    options: {
-      responsive: false
-    }
-  };
-
-  new Chart(document.getElementById('my_chart'), config);
-
-  // populating the data with the measurements
-  const table = document.getElementById('measurement_data').querySelector('tbody');
-
-  plotData.forEach((data) => {
-    const tr = document.createElement('tr');
-    const speedTd = document.createElement('td');
-
-    speedTd.textContent = data.speed
-
-    const probabilityTd = document.createElement('td');
-
-    probabilityTd.textContent = data.probability * 100;
-
-    tr.appendChild(speedTd);
-    tr.appendChild(probabilityTd);
-
-    table.appendChild(tr);
-  })
+  createDataPresentation();
 </script>
 </html>
