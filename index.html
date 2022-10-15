@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        canvas {
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="640" height="480"></canvas>
+</body>
+<script>
+    const T = 300; // Kelvins
+    const kB = 1.38 * Math.pow(10, -23); // J/K
+
+    // oxygen
+    const m = 2.65 * Math.pow(10, -26); // kg
+
+    // fibonacci sequence
+    const v = [800]
+
+    // v is meters per second
+
+    function probabilityOfASpeedOfAParticle(v) {
+      return (4 / Math.sqrt(Math.PI)) * Math.pow(m / (2 * kB * T), 3/2) * Math.pow(v, 2) * Math.pow(Math.exp(1), ((-m * Math.pow(v, 2)) / (2 * kB * T)))
+    }
+
+    // console.log(v.map((vt) => probabilityOfASpeedOfAParticle(vt) * 100))
+
+    // console.log(probabilityOfASpeedOfAParticle(300) / probabilityOfASpeedOfAParticle(100))
+
+    function probability(n) {
+      return !!n && Math.random() <= n;
+    }
+
+    const colors = ['#F0A202', '#F18805', '#D95D39', '#0E1428', '#0E1428', '#7B9E89']
+    const directions = ['vertical', 'horizontal']
+    const directionVectors = [-1, 1]
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    function setVelocity() {
+      let speed = 100; // m/s
+      const fallbackSpeed = 480; // m/s
+      const maxSpeedToTry = 2000; // m/s
+      let n = probabilityOfASpeedOfAParticle(speed);
+      let chanceWorkedOut = probability(n);
+
+      if (chanceWorkedOut) {
+        return speed;
+      }
+
+      while (!chanceWorkedOut && speed < maxSpeedToTry) {
+        speed += 10;
+        n = probabilityOfASpeedOfAParticle(speed);
+        chanceWorkedOut = probability(n);
+
+        if (chanceWorkedOut) {
+          return speed;
+        }
+      }
+
+      return fallbackSpeed;
+    }
+
+    let particles = (new Array(1000)).fill({}).map(() => {
+      return {
+        x: Math.random() * canvas.clientWidth,
+        y: Math.random() * canvas.clientHeight,
+        color: colors[Math.round(Math.random() * (colors.length - 1))],
+        direction: directions[Math.round(Math.random() * (directions.length - 1))],
+        directionVector: directionVectors[Math.round(Math.random() * (directionVectors.length - 1))],
+        velocity: setVelocity() / 1000
+      };
+    });
+
+    function move() {
+        particles = particles.map((particle) => {
+          let nextDirectionVector = particle.directionVector;
+
+          if (particle.direction === 'vertical') {
+            if (particle.y <= 0) {
+              nextDirectionVector = 1;
+            } else if (particle.y >= canvas.clientHeight) {
+              nextDirectionVector = -1;
+            }
+          }
+
+          if (particle.direction === 'horizontal') {
+            if (particle.x <= 0) {
+              nextDirectionVector = 1;
+            } else if (particle.x >= canvas.clientWidth) {
+              nextDirectionVector = -1;
+            }
+          }
+
+          return {
+            ...particle,
+            x: particle.direction === 'vertical' ? particle.x : particle.x + (particle.directionVector * particle.velocity),
+            y: particle.direction === 'horizontal' ? particle.y : particle.y + (particle.directionVector * particle.velocity),
+            directionVector: nextDirectionVector
+          }
+        })
+    }
+
+    function collisions() {
+      particles.forEach((particle, index) => {
+        particles.forEach((otherParticle, otherParticleIndex) => {
+          if (index === otherParticleIndex) {
+            return;
+          }
+
+          if ((particle.x === otherParticle.x) && (particle.y === otherParticle.y)) {
+            particle.directionVector = particle.directionVector * -1;
+            otherParticle.directionVector = otherParticle.directionVector * -1;
+          }
+        })
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      particles.forEach((particle) => {
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, 2, 0, 2 * Math.PI);
+        ctx.fillStyle = particle.color;
+        ctx.fill();
+      });
+    }
+
+    function loop() {
+      move();
+      // collisions();
+      draw();
+      window.requestAnimationFrame(loop);
+    }
+
+    // todo: add collisions
+    loop();
+</script>
+</html>
