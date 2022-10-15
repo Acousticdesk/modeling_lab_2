@@ -182,9 +182,8 @@
     // Distribution model helpers
 
     function setVelocity() {
-      const initialVelocity = 100;
+      const initialVelocity = 100; // m/s
       let velocity = initialVelocity; // m/s
-      // const fallbackSpeed = 480; // m/s
       const maxVelocityToTry = gasData[selectedGas].maxVelocityToTry; // m/s
       let n = probabilityOfASpeedOfAParticle(velocity);
       let chanceWorkedOut = probability(n);
@@ -206,8 +205,6 @@
           return velocity;
         }
       }
-
-      // return fallbackSpeed;
     }
 
     // Distribution model
