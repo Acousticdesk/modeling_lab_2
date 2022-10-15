@@ -5,16 +5,51 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
+    <title>Maxwell Distribution for particles of an idealized gas</title>
     <style>
         canvas {
             border: 1px solid #333;
+        }
+
+        table {
+            margin: 20px 0;
+        }
+
+        th {
+            position: sticky;
+            background: #fff;
+            top: 0;
+        }
+
+        td {
+            text-align: center;
+            padding: 10px 20px;
+            border: 1px solid #333;
+        }
+
+        .tableContainer {
+            display: inline-block;
+            max-height: 480px;
+            overflow: auto;
         }
     </style>
 </head>
 <body>
     <canvas id="canvas" width="640" height="480"></canvas>
+    <canvas id="my_chart" width="640" height="480"></canvas>
+    <div class="tableContainer">
+        <table id="measurement_data">
+            <thead>
+            <tr>
+                <th>Velocity of Oxygen Particle (m/s)</th>
+                <th>Probability (%)</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
 </body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
     const T = 300; // Kelvins
     const kB = 1.38 * Math.pow(10, -23); // J/K
@@ -22,11 +57,7 @@
     // oxygen
     const m = 2.65 * Math.pow(10, -26); // kg
 
-    // fibonacci sequence
-    const v = [800]
-
     // v is meters per second
-
     function probabilityOfASpeedOfAParticle(v) {
       return (4 / Math.sqrt(Math.PI)) * Math.pow(m / (2 * kB * T), 3/2) * Math.pow(v, 2) * Math.pow(Math.exp(1), ((-m * Math.pow(v, 2)) / (2 * kB * T)))
     }
@@ -144,5 +175,63 @@
 
     // todo: add collisions
     loop();
+</script>
+<script>
+  function createPlotData() {
+    let speed = 10; // m/s
+    let result = [];
+
+    while (speed <= 2000) {
+      result.push({
+        speed,
+        probability: probabilityOfASpeedOfAParticle(speed)
+      });
+      speed += 10;
+    }
+
+    return result;
+  }
+
+  const plotData = createPlotData();
+
+  const data = {
+    labels: plotData.map((data) => data.speed),
+    datasets: [{
+      label: 'Maxwell-Boltzmann Distribution for Oxygen',
+      data: plotData.map((data) => data.probability * 100),
+      fill: false,
+      borderColor: 'rgb(75, 192, 192)',
+      tension: 0.1,
+    }]
+  };
+
+  const config = {
+    type: 'line',
+    data: data,
+    options: {
+      responsive: false
+    }
+  };
+
+  new Chart(document.getElementById('my_chart'), config);
+
+  // populating the data with the measurements
+  const table = document.getElementById('measurement_data').querySelector('tbody');
+
+  plotData.forEach((data) => {
+    const tr = document.createElement('tr');
+    const speedTd = document.createElement('td');
+
+    speedTd.textContent = data.speed
+
+    const probabilityTd = document.createElement('td');
+
+    probabilityTd.textContent = data.probability * 100;
+
+    tr.appendChild(speedTd);
+    tr.appendChild(probabilityTd);
+
+    table.appendChild(tr);
+  })
 </script>
 </html>
