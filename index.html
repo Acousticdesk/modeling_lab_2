@@ -59,6 +59,11 @@
                         <option value="300">300</option>
                         <option value="400">400</option>
                         <option value="500">500</option>
+                        <option value="600">600</option>
+                        <option value="700">700</option>
+                        <option value="800">800</option>
+                        <option value="900">900</option>
+                        <option value="1000">1000</option>
                     </select>
                     K
                 </label>
@@ -78,7 +83,6 @@
         </fieldset>
     </form>
     <!--  fullscreen  -->
-    <canvas id="canvas" height="480"></canvas>
     <div class="canvasSection">
         <div>
             <canvas id="my_chart" width="640" height="480"></canvas>
@@ -95,6 +99,8 @@
             </table>
         </div>
     </div>
+    <h2 id="avg_velocity"></h2>
+    <canvas id="canvas" height="480"></canvas>
 </body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
@@ -114,15 +120,21 @@
     const gasData = {
       oxygen: {
         name: 'Oxygen',
-        m: 2.65 * Math.pow(10, -26) // kg
+        m: 2.65 * Math.pow(10, -26), // kg
+        maxVelocityToTry: 2000,
+        velocityGain: 10
       },
       hydrogen: {
         name: 'Hydrogen',
-        m: 1.6735575 * Math.pow(10, -27) // kg
+        m: 1.6735575 * Math.pow(10, -27), // kg
+        maxVelocityToTry: 10000,
+        velocityGain: 100
       },
       nitrogen: {
         name: 'Nitrogen',
-        m: 2.3258671 * Math.pow(10, -26) // kg
+        m: 2.3258671 * Math.pow(10, -26), // kg
+        maxVelocityToTry: 2000,
+        velocityGain: 10
       },
     };
 
@@ -135,13 +147,16 @@
     const parametersForm = document.getElementById('form');
 
     let kill;
+    let selectedGas = 'oxygen';
 
     parametersForm.addEventListener('submit', (e) => {
       e.preventDefault();
 
       const formData = new FormData(e.currentTarget);
 
-      m = gasData[formData.get('gas')].m;
+      selectedGas = formData.get('gas');
+
+      m = gasData[selectedGas].m;
       T = Number(formData.get('temperature_kelvin'));
 
       if (kill) {
@@ -150,7 +165,7 @@
       }
 
       kill = createDistributionModel();
-      createDataPresentation(gasData[formData.get('gas')].name);
+      createDataPresentation();
     });
 
     // global helpers
@@ -169,7 +184,7 @@
     function setVelocity() {
       let speed = 100; // m/s
       const fallbackSpeed = 480; // m/s
-      const maxSpeedToTry = 2000; // m/s
+      const maxSpeedToTry = gasData[selectedGas].maxVelocityToTry; // m/s
       let n = probabilityOfASpeedOfAParticle(speed);
       let chanceWorkedOut = probability(n);
 
@@ -205,6 +220,8 @@
           velocity: setVelocity() / 1000
         };
       });
+
+      document.getElementById('avg_velocity').textContent = `Average speed of the particle in the model: ${particles.reduce((acc, particle) => acc + particle.velocity, 0) / 1000 * 1000} m/s`
 
       function move() {
         particles = particles.map((particle) => {
@@ -284,20 +301,21 @@
 </script>
 <script>
   let currentPlot = null;
-  function createDataPresentation(gasName = 'Oxygen') {
+  function createDataPresentation() {
     if (currentPlot) {
       currentPlot.destroy();
     }
     function createPlotData() {
       let speed = 10; // m/s
       let result = [];
+      const max = gasData[selectedGas].maxVelocityToTry;
 
-      while (speed <= 2000) {
+      while (speed <= max) {
         result.push({
           speed,
           probability: probabilityOfASpeedOfAParticle(speed)
         });
-        speed += 10;
+        speed += gasData[selectedGas].velocityGain;
       }
 
       return result;
@@ -308,7 +326,7 @@
     const data = {
       labels: plotData.map((data) => data.speed),
       datasets: [{
-        label: `Maxwell-Boltzmann Distribution for ${gasName}`,
+        label: `Maxwell-Boltzmann Distribution for ${gasData[selectedGas].name}`,
         data: plotData.map((data) => data.probability * 100),
         fill: false,
         borderColor: 'rgb(75, 192, 192)',
@@ -329,7 +347,7 @@
     // populating the data with the measurements
     const tableContainer = document.getElementById('measurement_data');
     const table = tableContainer.querySelector('tbody');
-    tableContainer.querySelector('th').textContent = `Velocity of ${gasName} Particle (m/s)`;
+    tableContainer.querySelector('th').textContent = `Velocity of ${gasData[selectedGas].name} Particle (m/s)`;
 
     plotData.forEach((data) => {
       const tr = document.createElement('tr');
