@@ -138,6 +138,8 @@
       },
     };
 
+    const numberOfParticles = 1000;
+
     // parameters
     let T = 300; // Kelvins
     // oxygen
@@ -212,7 +214,7 @@
     const ctx = canvas.getContext('2d');
 
     function createDistributionModel() {
-      let particles = (new Array(1000)).fill({}).map(() => {
+      let particles = (new Array(numberOfParticles)).fill({}).map(() => {
         return {
           x: Math.random() * canvas.clientWidth,
           y: Math.random() * canvas.clientHeight,
@@ -223,7 +225,7 @@
         };
       });
 
-      document.getElementById('avg_velocity').textContent = `Average speed of the particle in the model: ${particles.reduce((acc, particle) => acc + particle.velocity, 0) / 1000 * 1000} m/s`
+      document.getElementById('avg_velocity').textContent = `Average speed of the particle in the model: ${particles.reduce((acc, particle) => acc + particle.velocity, 0) / numberOfParticles * 1000} m/s`
 
       function move() {
         particles = particles.map((particle) => {
