@@ -29,7 +29,6 @@
         }
 
         .tableContainer {
-            display: inline-block;
             max-height: 480px;
             overflow: auto;
         }
@@ -43,6 +42,14 @@
         .canvasSection {
             display: flex;
             justify-content: space-around;
+        }
+        @media screen and (max-width: 768px) {
+            table {
+                width: 100%;
+            }
+            .canvasSection {
+                display: block;
+            }
         }
     </style>
 </head>
@@ -85,7 +92,7 @@
     <!--  fullscreen  -->
     <div class="canvasSection">
         <div>
-            <canvas id="my_chart" width="640" height="480"></canvas>
+            <canvas id="my_chart" height="480"></canvas>
         </div>
         <div class="tableContainer">
             <table id="measurement_data">
@@ -107,6 +114,14 @@
     const canvasElement = document.getElementById('canvas');
 
     canvasElement.width = document.body.clientWidth;
+
+    const plotCanvasElement = document.getElementById('my_chart');
+
+    if (window.innerWidth <= 768) {
+      plotCanvasElement.width = document.body.clientWidth;
+    } else {
+      plotCanvasElement.width = 640;
+    }
 </script>
 <script>
     // constants
