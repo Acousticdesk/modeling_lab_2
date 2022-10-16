@@ -183,6 +183,8 @@
 
     // Distribution model helpers
 
+    let particlePositions = {};
+
     function setVelocity() {
       const initialVelocity = 100; // m/s
       let velocity = initialVelocity; // m/s
@@ -228,6 +230,8 @@
       document.getElementById('avg_velocity').textContent = `Average speed of the particle in the model: ${particles.reduce((acc, particle) => acc + particle.velocity, 0) / numberOfParticles * 1000} m/s`
 
       function move() {
+        particlePositions = {};
+
         particles = particles.map((particle) => {
           let nextDirectionVector = particle.directionVector;
 
@@ -254,21 +258,23 @@
             directionVector: nextDirectionVector
           }
         })
+
+        particles.forEach((particle) => {
+          const positionKey = `${Math.round(particle.x)}${Math.round(particle.y)}`;
+          particlePositions[positionKey] = particlePositions[positionKey] || [];
+          particlePositions[positionKey].push(particle);
+        })
       }
 
       function collisions() {
-        particles.forEach((particle, index) => {
-          particles.forEach((otherParticle, otherParticleIndex) => {
-            if (index === otherParticleIndex) {
-              return;
-            }
-
-            if ((particle.x === otherParticle.x) && (particle.y === otherParticle.y)) {
-              particle.directionVector = particle.directionVector * -1;
-              otherParticle.directionVector = otherParticle.directionVector * -1;
-            }
-          })
-        });
+        Object.values(particlePositions).forEach((positions) => {
+          // more than a single particle at a position
+          if (positions.length > 1) {
+            positions.forEach((particle) => {
+              particle.directionVector = -particle.directionVector;
+            });
+          }
+        })
       }
 
       function draw() {
@@ -285,7 +291,7 @@
 
       function loop() {
         move();
-        // collisions();
+        collisions();
         draw();
 
         if (!kill) {
@@ -293,7 +299,6 @@
         }
       }
 
-      // todo: add collisions
       loop();
 
       return () => {
