@@ -356,6 +356,7 @@
     // populating the data with the measurements
     const tableContainer = document.getElementById('measurement_data');
     const table = tableContainer.querySelector('tbody');
+    table.innerHTML = '';
     tableContainer.querySelector('th').textContent = `Velocity of ${gasData[selectedGas].name} Particle (m/s)`;
 
     plotData.forEach((data) => {
